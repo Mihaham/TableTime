@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from utils.keyboard import start_keyboard, games_keyboard, game_start_keyboard
 from utils.buttons import create_button, join_button, games_buttons, start_button
 from utils.texts import start_text, games_placeholder, join_text, game_creation_text, success_join, game_is_starting, user_joined_text
-from utils.utils import create_game, join_game, check_button, send_seq_messages
+from utils.utils import create_game, join_game, check_button, send_seq_messages, start_game
 
 router = Router()
 
@@ -53,7 +53,7 @@ async def games_joining(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     try:
         ids = join_game(user_id, message.text)
-        send_seq_messages(bot, ids, f"{user_joined_text} {message.from_user.username}", reply_markup=ReplyKeyboardRemove())
+        await send_seq_messages(bot, ids, f"{user_joined_text} {message.from_user.username}")
     except ValueError as err:
         await message.reply(str(err))
         return
@@ -61,11 +61,11 @@ async def games_joining(message : Message, bot : Bot, state: FSMContext):
     await state.set_state(UserStates.InGame)
 
 @router.message(F.text == start_button)
-async def start_game(message : Message, bot : Bot, state: FSMContext):
+async def start_game_handler(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     try:
         ids = start_game(user_id)
-        send_seq_messages(bot, ids, game_is_starting, reply_markup=ReplyKeyboardRemove())
+        await send_seq_messages(bot, ids, game_is_starting, reply_markup=ReplyKeyboardRemove())
     except ValueError as err:
         await message.reply(str(err))
         return
