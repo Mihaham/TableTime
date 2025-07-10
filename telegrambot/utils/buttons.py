@@ -7,3 +7,5 @@ join_button = "Присоединиться к игре😍"
 # Games
 
 monopoly_button = "Монополия 🏦"
+
+games_buttons = [monopoly_button]

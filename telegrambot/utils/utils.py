@@ -16,8 +16,8 @@ def join_game(user_id, invite_code):
     payload = {"user_id" : user_id, "invite_code" : invite_code}
     response = requests.post("", json = payload)
     if response.status_code == 404:
-        raise ValueError("Invite code does not exist")
+        raise ValueError("Такого кода приглашения не существует")
     elif response.status_code == 406:
-        raise ValueError("You are already joined")
+        raise ValueError("Вы уже присоединены к другой игре")
 
 

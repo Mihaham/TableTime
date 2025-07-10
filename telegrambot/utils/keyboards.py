@@ -3,7 +3,7 @@ from typing import List, Tuple
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 from utils.utils import is_admin
-from utils.buttons import start_button, join_button, monopoly_button
+from utils.buttons import start_button, join_button, monopoly_button, games_buttons
 from utils.texts import start_keyboard_placeholder, default_placeholder, games_placeholder
 
 
@@ -29,7 +29,7 @@ def start_keyboard(user_id):
 
 def games_keyboard(user_id):
     admin = is_admin(user_id)
-    buttons = [monopoly_button]
+    buttons = games_buttons
     admin_buttons = []
     return make_keyboard_from_buttons(buttons=[*buttons, *admin_buttons],
                                       input_field_placeholder=games_placeholder)
