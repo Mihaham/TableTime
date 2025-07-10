@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  database:
+    build:
+      context: ./database
+    env_file:
+      - ./database/.env
+    volumes:
+      - ./database/data:/var/lib/postgresql/data
+    networks:
+      - game-network
+
+  databaseinterface:
+    build:
+      context: ./databaseinterface
+    depends_on:
+      - database
+    networks:
+      - game-network
+
+  gameengine:
+    build:
+      context: ./gameengine
+    depends_on:
+      - databaseinterface
+    ports:
+      - "8000:8000"
+    networks:
+      - game-network
+
+  monopoly:
+    build:
+      context: ./games/monopoly
+    depends_on:
+      - gameengine
+    networks:
+      - game-network
+
+  telegrambot:
+    build:
+      context: ./telegrambot
+    env_file:
+      - ./telegrambot/.env
+    depends_on:
+      - databaseinterface
+      - monopoly
+    networks:
+      - game-network
+
+networks:
+  game-network:
+    driver: bridge
