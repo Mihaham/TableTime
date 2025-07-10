@@ -18,7 +18,7 @@ class UserStates(StatesGroup):
 
 
 @router.message(Command("start"))
-async def start(bot : Bot, message : Message):
+async def start(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     await message.reply(f"Привет, {message.from_user.username}!\n{start_text}", reply_markup=start_keyboard(user_id))
 
@@ -27,7 +27,7 @@ async def start(bot : Bot, message : Message):
 
 @router.message(Command("join"))
 @router.message(F.text == join_button)
-async def join(bot : Bot, message : Message, state : FSMContext):
+async def join(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     await message.reply(join_text, reply_markup=ReplyKeyboardRemove())
     await state.set_state(UserStates.WaitingInviteCode)
@@ -35,12 +35,12 @@ async def join(bot : Bot, message : Message, state : FSMContext):
 
 @router.message(Command("create"))
 @router.message(F.text == create_button)
-async def create(bot : Bot, message : Message):
+async def create(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     await message.reply(games_placeholder, reply_markup=games_keyboard(user_id))
 
 @router.message(lambda message: message.text and message.text.lower() in games_buttons)
-async def game_creation(bot : Bot, message : Message, state : FSMContext):
+async def game_creation(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     invite_code = create_game(user_id, message.text)
 
@@ -48,7 +48,7 @@ async def game_creation(bot : Bot, message : Message, state : FSMContext):
     await state.set_state(UserStates.InGame)
 
 @router.message(UserStates.WaitingInviteCode)
-async def games_joining(bot : Bot, message : Message, state : FSMContext):
+async def games_joining(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     try:
         join_game(user_id, message.text)
