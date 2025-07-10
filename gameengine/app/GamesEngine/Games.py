@@ -21,6 +21,9 @@ class Game():
         self.is_started = False
         self.status = "Waiting for users"
 
+    def get_main_user_id(self):
+        return self.main_user.get_id()
+
     def generate_invite_code(self):
         return random.randint(100000, 999999)
 
@@ -35,6 +38,9 @@ class Game():
             if old_user.get_id() == user.get_id():
                 self.users.remove(old_user)
 
+    def get_users_id(self):
+        return [user.get_id() for user in self.users]
+
 
     def start(self):
         self.is_started = True
@@ -43,9 +49,61 @@ class Game():
         return self.status
 
 
+    def check_user(self, user_id):
+        for user in self.users:
+            if user.get_id() == user_id:
+                return True
+        return False
+
 
 
 
 class GamesEngine():
-    pass
+    def __init__(self) -> None:
+        self.games = []
+
+    def create_game(self, user_id : int, name : str):
+        self.games.append(Game(name, User(user_id)))
+
+    def append_game(self, game : Game):
+        self.games.append(game)
+
+    def get_game(self, user_id):
+        for game in self.games:
+            if user_id in game.get_users_id():
+                return game.get_id()
+
+    def get_invite_code(self, user_id):
+        for game in self.games:
+            if user_id in game.get_users_id():
+                return game.get_id()
+
+    def delete_game(self, game : Game):
+        self.games.remove(game)
+
+    def delete_game_by_main_user_id(self, user_id: int):
+        for game in self.games:
+            if game.get_main_user_id() == user_id:
+                self.games.remove(game)
+                break
+
+    def add_user(self, user_id : int, invite_code : int):
+        if self.check_user(user_id):
+            raise ValueError("Пользователь уже присоединен к другой игре")
+        for game in self.games:
+            if game.get_invite_code() == invite_code:
+                game.add_user(User(user_id))
+
+    def remove_user(self, user_id : int):
+        for game in self.games:
+            if game.check_user(user_id):
+                game.remove_user(user_id)
+                break
+        raise ValueError("Пользователь не присоединен ни к одной игре")
+
+    def check_user(self, user_id):
+        for game in self.games:
+            if game.check_user(user_id):
+                return True
+        return False
 
