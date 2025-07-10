@@ -1,5 +1,5 @@
 import random
-from app.error.error import AccessError, GameAmountError
+from app.error.error import AccessError, GameAmountError, IsNotConnectedError, NotHostError
 
 class User():
     def __init__(self, user_id : int):
@@ -38,7 +38,7 @@ class Game():
             if old_user.get_id() == user.get_id():
                 self.users.remove(old_user)
 
-    def get_users_id(self):
+    def get_user_ids(self):
         return [user.get_id() for user in self.users]
 
 
@@ -54,6 +54,9 @@ class Game():
             if user.get_id() == user_id:
                 return True
         return False
+
+    def start(self):
+        self.is_started = True
 
 
 
@@ -71,12 +74,12 @@ class GamesEngine():
 
     def get_game(self, user_id):
         for game in self.games:
-            if user_id in game.get_users_id():
+            if user_id in game.get_user_ids():
                 return game.get_id()
 
     def get_invite_code(self, user_id):
         for game in self.games:
-            if user_id in game.get_users_id():
+            if user_id in game.get_user_ids():
                 return game.get_id()
 
     def delete_game(self, game : Game):
@@ -102,11 +105,20 @@ class GamesEngine():
             if game.check_user(user_id):
                 game.remove_user(user_id)
                 break
-        raise ValueError("Пользователь не присоединен ни к одной игре")
+        raise IsNotConnectedError
 
     def check_user(self, user_id):
         for game in self.games:
             if game.check_user(user_id):
                 return True
         return False
+
+    def start_game(self, user_id):
+        if not self.check_user(user_id):
+            raise IsNotConnectedError
+        for game in self.games:
+            if game.get_main_user_id() == user_id:
+                game.start()
+                return game.get_user_ids()
+        raise NotHostError
 

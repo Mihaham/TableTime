@@ -18,4 +18,7 @@ class GameState(BaseModel):
     image : str
     text : str
 
+class UserItem(BaseModel):
+    user_id : int
+
 
