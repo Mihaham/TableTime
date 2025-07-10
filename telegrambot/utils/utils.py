@@ -24,4 +24,13 @@ def join_game(user_id, invite_code):
 def check_button(button : str, list_buttons : list):
     return bool(button in list_buttons)
 
+def start_game(user_id):
+    payload = {"user_id" : user_id}
+    response = requests.post(f"{game_engine_url}/start", json = payload)
+    if response.status_code == 404:
+        raise ValueError("Вы не присоединены ни к одной игре")
+    elif response.status_code == 406:
+        raise ValueError("Вы не являетесь хостом в игре")
+    return response.json()['ids']
+
 

@@ -4,9 +4,9 @@ from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
-from utils.keyboard import start_keyboard, games_keyboard
-from utils.buttons import create_button, join_button, games_buttons
-from utils.texts import start_text, games_placeholder, join_text, game_creation_text, success_join
+from utils.keyboard import start_keyboard, games_keyboard, game_start_keyboard
+from utils.buttons import create_button, join_button, games_buttons, start_button
+from utils.texts import start_text, games_placeholder, join_text, game_creation_text, success_join, game_is_starting
 from utils.utils import create_game, join_game, check_button
 
 router = Router()
@@ -14,6 +14,7 @@ router = Router()
 class UserStates(StatesGroup):
     WaitingInviteCode = State()
     InGame = State()
+    PlayingGame = State()
 
 
 
@@ -44,7 +45,7 @@ async def game_creation(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     invite_code = create_game(user_id, message.text)
 
-    await message.reply(f"{game_creation_text} {invite_code}", reply_markup=ReplyKeyboardRemove())
+    await message.reply(f"{game_creation_text} {invite_code}", reply_markup=game_start_keyboard)
     await state.set_state(UserStates.InGame)
 
 @router.message(UserStates.WaitingInviteCode)
@@ -57,4 +58,17 @@ async def games_joining(message : Message, bot : Bot, state: FSMContext):
         return
     await message.reply(success_join)
     await state.set_state(UserStates.InGame)
+
+@router.message(F.text == start_button)
+async def start_game(message : Message, bot : Bot, state: FSMContext):
+    user_id = message.from_user.id
+    try:
+        ids = start_game(user_id)
+    except ValueError as err:
+        await message.reply(str(err))
+        return
+
+    for id in ids:
+        bot.send_message(id, game_is_starting, reply_markup=ReplyKeyboardRemove())
+        await bot.set_state(UserStates.PlayingGame)
 
