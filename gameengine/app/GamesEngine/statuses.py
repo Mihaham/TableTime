@@ -1,5 +1,5 @@
 class Status():
     name : str
 
-class WaitingStatus():
+class WaitingStatus(Status):
     name : str = "Waiting for other players"

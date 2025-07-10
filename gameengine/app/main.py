@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from app.endpoints import game_creation
 
 app = FastAPI(
-    title="My API Service",
+    title="GameEngine",
     version="0.1.0"
 )
 
