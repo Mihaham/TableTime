@@ -1,5 +1,6 @@
 from gameengine.app.models import GameResponse
 import random
+from app.errors.errors import AccessError, GameAmountError
 
 class User():
     def __init__(self, user_id : int):
@@ -64,6 +65,7 @@ class GamesEngine():
 
     def create_game(self, user_id : int, name : str):
         self.games.append(Game(name, User(user_id)))
+        return self.games[-1].get_invite_code()
 
     def append_game(self, game : Game):
         self.games.append(game)
@@ -89,10 +91,12 @@ class GamesEngine():
 
     def add_user(self, user_id : int, invite_code : int):
         if self.check_user(user_id):
-            raise ValueError("Пользователь уже присоединен к другой игре")
+            raise GameAmountError("Пользователь уже присоединен к другой игре")
         for game in self.games:
             if game.get_invite_code() == invite_code:
                 game.add_user(User(user_id))
+                return True
+        raise ValueError("Invalid Invite Code")
 
     def remove_user(self, user_id : int):
         for game in self.games:

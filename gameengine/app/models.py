@@ -9,10 +9,10 @@ class GameCreate(InputItem):
     game : str
 
 class GameResponse(BaseModel):
-    id: int
+    invite_code: int
 
-    class Config:
-        orm_mode = True
+class JoinCreate(InputItem):
+    invite_code : int
 
 class GameState(BaseModel):
     image : base64
