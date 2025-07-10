@@ -72,10 +72,13 @@ class GamesEngine():
     def append_game(self, game : Game):
         self.games.append(game)
 
+    def get_game_id(self, user_id):
+        self.get_game(user_id).get_id()
+
     def get_game(self, user_id):
         for game in self.games:
             if user_id in game.get_user_ids():
-                return game.get_id()
+                return game
 
     def get_invite_code(self, user_id):
         for game in self.games:
@@ -121,4 +124,7 @@ class GamesEngine():
                 game.start()
                 return game.get_user_ids()
         raise NotHostError
+
+    def get_user_ids(self, user_id):
+        return self.get_game(user_id).get_user_ids()
 

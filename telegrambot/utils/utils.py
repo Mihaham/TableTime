@@ -19,6 +19,7 @@ def join_game(user_id, invite_code):
         raise ValueError("Такого кода приглашения не существует")
     elif response.status_code == 406:
         raise ValueError("Вы уже присоединены к другой игре")
+    return response.json()
 
 
 def check_button(button : str, list_buttons : list):
@@ -31,6 +32,11 @@ def start_game(user_id):
         raise ValueError("Вы не присоединены ни к одной игре")
     elif response.status_code == 406:
         raise ValueError("Вы не являетесь хостом в игре")
-    return response.json()['ids']
+    return response.json()
+
+
+async def send_seq_messages(bot, user_ids, message, **kwargs):
+    for id in user_ids:
+        await bot.send_message(id, message, **kwargs)
 
 

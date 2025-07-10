@@ -6,8 +6,8 @@ from aiogram.fsm.context import FSMContext
 
 from utils.keyboard import start_keyboard, games_keyboard, game_start_keyboard
 from utils.buttons import create_button, join_button, games_buttons, start_button
-from utils.texts import start_text, games_placeholder, join_text, game_creation_text, success_join, game_is_starting
-from utils.utils import create_game, join_game, check_button
+from utils.texts import start_text, games_placeholder, join_text, game_creation_text, success_join, game_is_starting, user_joined_text
+from utils.utils import create_game, join_game, check_button, send_seq_messages
 
 router = Router()
 
@@ -45,14 +45,15 @@ async def game_creation(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     invite_code = create_game(user_id, message.text)
 
-    await message.reply(f"{game_creation_text} {invite_code}", reply_markup=game_start_keyboard)
+    await message.reply(f"{game_creation_text} {invite_code}", reply_markup=game_start_keyboard(user_id))
     await state.set_state(UserStates.InGame)
 
 @router.message(UserStates.WaitingInviteCode)
 async def games_joining(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     try:
-        join_game(user_id, message.text)
+        ids = join_game(user_id, message.text)
+        send_seq_messages(bot, ids, f"{user_joined_text} {message.from_user.username}", reply_markup=ReplyKeyboardRemove())
     except ValueError as err:
         await message.reply(str(err))
         return
@@ -64,11 +65,11 @@ async def start_game(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     try:
         ids = start_game(user_id)
+        send_seq_messages(bot, ids, game_is_starting, reply_markup=ReplyKeyboardRemove())
     except ValueError as err:
         await message.reply(str(err))
         return
 
-    for id in ids:
-        bot.send_message(id, game_is_starting, reply_markup=ReplyKeyboardRemove())
-        await bot.set_state(UserStates.PlayingGame)
+    #for id in ids:
+    #    await bot.set_state(UserStates.PlayingGame)
 

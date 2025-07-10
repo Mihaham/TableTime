@@ -13,10 +13,13 @@ async def create_game(item: GameCreate):
     invite_code = games.create_game(user_id = item.user_id, name=item.game)
     return {"invite_code": invite_code}
 
-@router.post("/join/", response_model=None)
+@router.post("/join/", response_model=list[int])
 async def join_game(item: JoinCreate):
     try:
         games.add_user(item.user_id, item.invite_code)
+        ids = games.get_user_ids(user_id = item.user_id)
+        ids.remove(item.user_id)
+        return ids
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except GameAmountError as e:
