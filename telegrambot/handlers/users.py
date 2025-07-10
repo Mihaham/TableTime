@@ -53,7 +53,7 @@ async def games_joining(message : Message, bot : Bot, state: FSMContext):
     try:
         join_game(user_id, message.text)
     except ValueError as err:
-        message.reply(str(err))
+        await message.reply(str(err))
         return
     await message.reply(success_join)
     await state.set_state(UserStates.InGame)

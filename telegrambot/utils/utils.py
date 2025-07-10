@@ -6,11 +6,11 @@ def is_admin(user_id):
 
 
 def create_game(user_id, name):
-    payload = {"user_id" : user_id, "name" : name}
+    payload = {"user_id" : user_id, "game" : name}
     response = requests.post(f"{game_engine_url}/create", json = payload)
     if response.status_code != 200:
         pass
-    return response.json()["invite_code"]
+    return response.json()['invite_code']
 
 def join_game(user_id, invite_code):
     payload = {"user_id" : user_id, "invite_code" : invite_code}
