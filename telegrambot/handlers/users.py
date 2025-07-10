@@ -39,7 +39,7 @@ async def create(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     await message.reply(games_placeholder, reply_markup=games_keyboard(user_id))
 
-@router.message(lambda message: message.text and message.text.lower() in games_buttons)
+@router.message(lambda message: message.text and message.text in games_buttons)
 async def game_creation(message : Message, bot : Bot, state: FSMContext):
     user_id = message.from_user.id
     invite_code = create_game(user_id, message.text)
