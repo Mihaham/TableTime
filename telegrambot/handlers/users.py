@@ -4,11 +4,10 @@ from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
-from texts import start_text
 from utils.keyboard import start_keyboard, games_keyboard
 from utils.buttons import create_button, join_button, games_buttons
-from utils.texts import games_placeholder, join_text, game_creation_text, success_join
-from utils.utils import create_game, join_game
+from utils.texts import start_text, games_placeholder, join_text, game_creation_text, success_join
+from utils.utils import create_game, join_game, check_button
 
 router = Router()
 
@@ -40,7 +39,7 @@ async def create(bot : Bot, message : Message):
     user_id = message.from_user.id
     await message.reply(games_placeholder, reply_markup=games_keyboard(user_id))
 
-@router.message(F.text in games_buttons)
+@router.message(lambda message: message.text and message.text.lower() in games_buttons)
 async def game_creation(bot : Bot, message : Message, state : FSMContext):
     user_id = message.from_user.id
     invite_code = create_game(user_id, message.text)

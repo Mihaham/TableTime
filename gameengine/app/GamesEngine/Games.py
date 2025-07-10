@@ -1,6 +1,5 @@
-from gameengine.app.models import GameResponse
 import random
-from app.errors.errors import AccessError, GameAmountError
+from app.error.error import AccessError, GameAmountError
 
 class User():
     def __init__(self, user_id : int):

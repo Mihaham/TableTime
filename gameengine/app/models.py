@@ -15,7 +15,7 @@ class JoinCreate(InputItem):
     invite_code : int
 
 class GameState(BaseModel):
-    image : base64
+    image : str
     text : str
 
 

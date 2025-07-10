@@ -1,4 +1,4 @@
-from utils import init_db
+from app.utils import init_db
 import asyncio
 
 if __name__ == "__main__":
