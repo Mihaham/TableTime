@@ -3,6 +3,7 @@ from app.models import GameCreate, GameResponse, JoinCreate, InputItem, UserItem
 from app.dependencies import get_game_id
 from app.GamesEngine.Games import GamesEngine
 from app.error.error import AccessError, GameAmountError, IsNotConnectedError, NotHostError
+import json
 
 router = APIRouter()
 
