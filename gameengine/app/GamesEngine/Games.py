@@ -44,19 +44,16 @@ class Game():
 
     def start(self):
         self.is_started = True
+        self.status = "Started"
 
     def get_status(self):
         return self.status
-
 
     def check_user(self, user_id):
         for user in self.users:
             if user.get_id() == user_id:
                 return True
         return False
-
-    def start(self):
-        self.is_started = True
 
 
 
@@ -106,9 +103,9 @@ class GamesEngine():
     def remove_user(self, user_id : int):
         for game in self.games:
             if game.check_user(user_id):
-                game.remove_user(user_id)
-                break
-        raise IsNotConnectedError
+                game.delete_user(User(user_id))
+                return True
+        raise IsNotConnectedError("Пользователь не присоединен ни к одной игре")
 
     def check_user(self, user_id):
         for game in self.games:
@@ -118,12 +115,12 @@ class GamesEngine():
 
     def start_game(self, user_id):
         if not self.check_user(user_id):
-            raise IsNotConnectedError
+            raise IsNotConnectedError("Пользователь не присоединен ни к одной игре")
         for game in self.games:
             if game.get_main_user_id() == user_id:
                 game.start()
                 return game.get_user_ids()
-        raise NotHostError
+        raise NotHostError("User is not host")
 
     def get_user_ids(self, user_id):
         return self.get_game(user_id).get_user_ids()

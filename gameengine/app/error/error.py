@@ -4,5 +4,8 @@ class AccessError(ValueError):
 class GameAmountError(ValueError):
     pass
 
-NotHostError = ValueError("User is not host")
-IsNotConnectedError = ValueError("Пользователь не присоединен ни к одной игре")
+class NotHostError(ValueError):
+    pass
+
+class IsNotConnectedError(ValueError):
+    pass

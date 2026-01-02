@@ -10,12 +10,32 @@ services:
       - ./database/data:/var/lib/postgresql/data
     networks:
       - game-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   databaseinterface:
     build:
       context: ./databaseinterface
     depends_on:
-      - database
+      database:
+        condition: service_healthy
+    ports:
+      - "8001:8000"
+    networks:
+      - game-network
+    environment:
+      - POSTGRES_APP_USER=${POSTGRES_APP_USER}
+      - POSTGRES_APP_PASSWORD=${POSTGRES_APP_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+
+  userservice:
+    build:
+      context: ./userservice
+    ports:
+      - "8002:8000"
     networks:
       - game-network
 
@@ -25,7 +45,7 @@ services:
     depends_on:
       - databaseinterface
     ports:
-      - "8000:8000"
+      - "8003:8000"
     networks:
       - game-network
 
@@ -34,8 +54,38 @@ services:
       context: ./games/monopoly
     depends_on:
       - gameengine
+    ports:
+      - "8004:8000"
     networks:
       - game-network
+
+  notificationservice:
+    build:
+      context: ./notificationservice
+    ports:
+      - "8005:8000"
+    networks:
+      - game-network
+
+  apigateway:
+    build:
+      context: ./apigateway
+    depends_on:
+      - userservice
+      - gameengine
+      - monopoly
+      - databaseinterface
+      - notificationservice
+    ports:
+      - "8000:8000"
+    networks:
+      - game-network
+    environment:
+      - USER_SERVICE_URL=http://userservice:8000
+      - GAME_ENGINE_SERVICE_URL=http://gameengine:8000
+      - MONOPOLY_SERVICE_URL=http://monopoly:8000
+      - DATABASE_INTERFACE_SERVICE_URL=http://databaseinterface:8000
+      - NOTIFICATION_SERVICE_URL=http://notificationservice:8000
 
   telegrambot:
     build:
@@ -43,8 +93,8 @@ services:
     env_file:
       - ./telegrambot/.env
     depends_on:
-      - databaseinterface
-      - monopoly
+      - apigateway
+      - userservice
     networks:
       - game-network
 
