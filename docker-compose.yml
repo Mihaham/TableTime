@@ -1,11 +1,15 @@
-version: '3.8'
-
 services:
   database:
     build:
       context: ./database
     env_file:
       - ./database/.env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_password}
+      - POSTGRES_DB=${POSTGRES_DB:-tabletime_db}
+      - POSTGRES_APP_USER=${POSTGRES_APP_USER:-app_user}
+      - POSTGRES_APP_PASSWORD=${POSTGRES_APP_PASSWORD:-app_password}
     volumes:
       - ./database/data:/var/lib/postgresql/data
     networks:
@@ -92,11 +96,16 @@ services:
       context: ./telegrambot
     env_file:
       - ./telegrambot/.env
+    environment:
+      - TOKEN=${TOKEN:-}
     depends_on:
       - apigateway
       - userservice
     networks:
       - game-network
+    # Uncomment to disable telegrambot if not needed
+    # profiles:
+    #   - disabled
 
 networks:
   game-network:
