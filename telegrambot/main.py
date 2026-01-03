@@ -3,7 +3,7 @@ import asyncio
 from aiogram import Bot, Dispatcher
 # from middlewares.database import DatabaseMiddleware # Надо потом переписать класс под новую структуру
 from config import TOKEN
-from handlers import admin, users
+from handlers import admin, users, rps
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -11,7 +11,7 @@ dp = Dispatcher()
 async def main():
     # dp.update.middleware(DatabaseMiddleware())
 
-    routers = (admin.router, users.router)
+    routers = (admin.router, users.router, rps.router)
     for router in routers:
         dp.include_router(router)
 

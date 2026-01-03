@@ -38,11 +38,11 @@ Open a new terminal and check health:
 curl http://localhost:8000/health
 
 # Check all services
-curl http://localhost:8001/health  # Database Interface
+curl http://localhost:8000/health  # API Gateway
 curl http://localhost:8002/health  # User Service
 curl http://localhost:8003/health  # Game Engine
 curl http://localhost:8004/health  # Monopoly
-curl http://localhost:8005/health  # Notifications
+curl http://localhost:8006/health  # Rock Paper Scissors
 ```
 
 ## Step 4: View Logs

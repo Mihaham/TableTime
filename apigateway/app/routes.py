@@ -5,8 +5,7 @@ from app.config import (
     USER_SERVICE_URL,
     GAME_ENGINE_SERVICE_URL,
     MONOPOLY_SERVICE_URL,
-    DATABASE_INTERFACE_SERVICE_URL,
-    NOTIFICATION_SERVICE_URL
+    RPS_SERVICE_URL
 )
 
 router = APIRouter()
@@ -58,13 +57,9 @@ async def proxy_game_engine(path: str, request: Request):
 async def proxy_monopoly(path: str, request: Request):
     return await proxy_request(MONOPOLY_SERVICE_URL, f"/api/v1/monopoly/{path}", request.method, request)
 
-# Database Interface Routes
-@router.api_route("/api/v1/database/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_database(path: str, request: Request):
-    return await proxy_request(DATABASE_INTERFACE_SERVICE_URL, f"/api/v1/{path}", request.method, request)
+# Rock Paper Scissors Service Routes
+@router.api_route("/api/v1/rps/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_rps(path: str, request: Request):
+    return await proxy_request(RPS_SERVICE_URL, f"/api/v1/rps/{path}", request.method, request)
 
-# Notification Service Routes
-@router.api_route("/api/v1/notifications/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_notifications(path: str, request: Request):
-    return await proxy_request(NOTIFICATION_SERVICE_URL, f"/api/v1/notifications/{path}", request.method, request)
 

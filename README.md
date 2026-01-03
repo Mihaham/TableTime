@@ -7,13 +7,11 @@ A microservices-based platform for tabletop games with Telegram bot integration.
 The platform consists of the following microservices:
 
 - **API Gateway** (Port 8000) - Main entry point for all API requests
-- **Database Interface** (Port 8001) - Database operations service
 - **User Service** (Port 8002) - User management
-- **Game Engine** (Port 8003) - Game session management
+- **Game Engine** (Port 8003) - Game session management (invite codes, user sessions)
 - **Monopoly Service** (Port 8004) - Monopoly game logic
-- **Notification Service** (Port 8005) - Notification management
+- **Rock Paper Scissors Service** (Port 8006) - Rock Paper Scissors game logic
 - **Telegram Bot** - Telegram bot integration
-- **PostgreSQL Database** - Data persistence
 
 ## Prerequisites
 
@@ -69,8 +67,8 @@ docker-compose up -d --build
 ### Start Specific Services
 
 ```powershell
-# Start only database and database interface
-docker-compose up database databaseinterface
+# Start only database
+docker-compose up database
 
 # Start all services except telegram bot
 docker-compose up --build --scale telegrambot=0
@@ -102,11 +100,10 @@ docker-compose down -v
 Once started, you can access:
 
 - **API Gateway**: http://localhost:8000
-- **Database Interface**: http://localhost:8001
 - **User Service**: http://localhost:8002
 - **Game Engine**: http://localhost:8003
 - **Monopoly Service**: http://localhost:8004
-- **Notification Service**: http://localhost:8005
+- **Rock Paper Scissors Service**: http://localhost:8006
 
 ### Health Checks
 
@@ -117,11 +114,10 @@ All services have health check endpoints:
 curl http://localhost:8000/health
 
 # Other services
-curl http://localhost:8001/health
-curl http://localhost:8002/health
-curl http://localhost:8003/health
-curl http://localhost:8004/health
-curl http://localhost:8005/health
+curl http://localhost:8002/health  # User Service
+curl http://localhost:8003/health  # Game Engine
+curl http://localhost:8004/health  # Monopoly
+curl http://localhost:8006/health  # Rock Paper Scissors
 ```
 
 ## API Gateway Routes
@@ -131,8 +127,7 @@ The API Gateway routes requests to appropriate services:
 - `/api/v1/users/*` → User Service
 - `/api/v1/game/*` → Game Engine
 - `/api/v1/monopoly/*` → Monopoly Service
-- `/api/v1/database/*` → Database Interface
-- `/api/v1/notifications/*` → Notification Service
+- `/api/v1/rps/*` → Rock Paper Scissors Service
 
 ## Troubleshooting
 
@@ -175,7 +170,7 @@ docker-compose up --build
 ```powershell
 # Access a service container
 docker-compose exec apigateway /bin/bash
-docker-compose exec databaseinterface /bin/bash
+docker-compose exec gameengine /bin/bash
 ```
 
 ## Production Considerations

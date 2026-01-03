@@ -1,23 +1,27 @@
-from aiogram import Router, Bot
+from aiogram import Router, Bot, F
 from aiogram.types import Message
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
 import httpx
 import asyncio
 from functools import wraps
 
 from config import ADMIN_USER_ID
+from utils.keyboard import admin_keyboard, start_keyboard
+from utils.buttons import admin_status_button, admin_back_button
+from utils.utils import is_admin
 
 router = Router()
 
 # Microservice URLs for health checks
 MICROSERVICES = {
     "API Gateway": "http://apigateway:8000/health",
-    "Database Interface": "http://databaseinterface:8000/health",
     "User Service": "http://userservice:8000/health",
     "Game Engine": "http://gameengine:8000/health",
     "Monopoly Service": "http://monopoly:8000/health",
-    "Notification Service": "http://notificationservice:8000/health",
+    "RPS Service": "http://rps:8000/health",
 }
+
 
 
 def admin_only(func):
@@ -76,13 +80,16 @@ async def check_service_health(service_name: str, url: str) -> dict:
         }
 
 
+
+
 @router.message(Command("status"))
+@router.message(F.text == admin_status_button)
 @admin_only
 async def check_status(message: Message, bot: Bot):
     """Check status of all microservices"""
-    await message.reply("🔍 Checking microservice statuses...")
+    await message.reply("🔍 Проверка статуса всех микросервисов...")
     
-    status_report = "📊 **Microservice Status Report**\n\n"
+    status_report = "📊 **Отчет о статусе микросервисов**\n\n"
     
     # Check all services concurrently
     tasks = [
@@ -92,27 +99,55 @@ async def check_status(message: Message, bot: Bot):
     results = await asyncio.gather(*tasks)
     
     # Format results
+    online_count = 0
+    total_count = len(MICROSERVICES)
+    
     for (service_name, _), result in zip(MICROSERVICES.items(), results):
         status_report += f"**{service_name}**\n"
-        status_report += f"Status: {result['status']}\n"
+        status_report += f"Статус: {result['status']}\n"
+        
+        if "✅ Online" in result['status']:
+            online_count += 1
+            
         if result.get('details'):
             if isinstance(result['details'], dict):
                 # Format JSON response nicely
                 details_str = ", ".join([f"{k}: {v}" for k, v in result['details'].items()])
-                status_report += f"Details: {details_str}\n"
+                status_report += f"Детали: {details_str}\n"
             else:
-                status_report += f"Details: {result['details']}\n"
+                status_report += f"Детали: {result['details']}\n"
         status_report += "\n"
     
-    await message.reply(status_report, parse_mode="Markdown")
+    status_report += f"\n**Итого**: {online_count}/{total_count} сервисов онлайн"
+    
+    await message.reply(status_report, parse_mode="Markdown", reply_markup=admin_keyboard(message.from_user.id))
+
+
+@router.message(F.text == admin_back_button)
+async def admin_back(message: Message, bot: Bot, state: FSMContext):
+    """Return to main menu from admin panel"""
+    if not is_admin(message.from_user.id):
+        return
+    
+    await message.reply(
+        "Главное меню",
+        reply_markup=start_keyboard(message.from_user.id)
+    )
 
 
 @router.message(Command("admin"))
 @admin_only
 async def admin_help(message: Message, bot: Bot):
     """Show available admin commands"""
-    help_text = "🔐 **Admin Commands**\n\n"
-    help_text += "/status - Check status of all microservices\n"
-    help_text += "/admin - Show this help message\n"
+    help_text = "🔐 **Админ-панель**\n\n"
+    help_text += "**Кнопки:**\n"
+    help_text += f"• {admin_status_button} - Проверить статус всех сервисов\n\n"
+    help_text += "**Команды:**\n"
+    help_text += "• `/status` - Проверить статус всех сервисов\n"
+    help_text += "• `/admin` - Показать это сообщение\n"
     
-    await message.reply(help_text, parse_mode="Markdown")
+    await message.reply(
+        help_text,
+        parse_mode="Markdown",
+        reply_markup=admin_keyboard(message.from_user.id)
+    )
