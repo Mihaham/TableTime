@@ -96,8 +96,10 @@ services:
       context: ./telegrambot
     env_file:
       - ./telegrambot/.env
-    environment:
-      - TOKEN=${TOKEN:-}
+    # Remove environment override - let env_file handle it
+    # If TOKEN needs to be overridden, uncomment and set it here
+    # environment:
+    #   - TOKEN=${TOKEN}
     depends_on:
       - apigateway
       - userservice

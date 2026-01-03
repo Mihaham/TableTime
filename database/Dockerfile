@@ -1,4 +1,4 @@
-FROM postgres:latest
+FROM postgres:15-alpine
 
 # Копируем скрипт инициализации
 COPY init-user-db.sh /docker-entrypoint-initdb.d/init-user-db.sh
