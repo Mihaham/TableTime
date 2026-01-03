@@ -159,10 +159,11 @@ async def admin_help(message: Message, bot: Bot):
 @router.message(Command("logs"))
 @admin_only
 async def show_game_logs(message: Message, bot: Bot):
-    """Show game logs"""
+    """Show all game logs with detailed information"""
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{logging_service_url}/all", params={"limit": 50})
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            # Get all logs (no limit or high limit)
+            response = await client.get(f"{logging_service_url}/all", params={"limit": 1000})
             if response.status_code == 200:
                 data = response.json()
                 logs = data.get("logs", [])
@@ -174,21 +175,25 @@ async def show_game_logs(message: Message, bot: Bot):
                     )
                     return
                 
-                # Format logs
-                log_text = "📋 **Последние логи игр:**\n\n"
+                # Format logs with detailed information
+                log_text = f"📋 **Все логи игр (всего: {len(logs)})**\n\n"
                 
-                for i, log in enumerate(logs[:20], 1):  # Show first 20 logs
+                # Telegram message limit is 4096 characters, so we'll send multiple messages if needed
+                current_message = log_text
+                
+                for i, log in enumerate(logs, 1):
                     log_type = log.get("log_type", "unknown")
                     game_id = log.get("game_id", "N/A")
                     game_type = log.get("game_type", "N/A")
                     user_id = log.get("user_id", "N/A")
                     timestamp = log.get("timestamp", "N/A")
+                    action_type = log.get("action_type")
                     
                     # Format timestamp
                     if timestamp and timestamp != "N/A":
                         try:
                             if isinstance(timestamp, str):
-                                timestamp = timestamp.split(".")[0]  # Remove microseconds
+                                timestamp = timestamp.split(".")[0].replace("T", " ")  # Remove microseconds and format
                         except:
                             pass
                     
@@ -200,17 +205,101 @@ async def show_game_logs(message: Message, bot: Bot):
                         "finish": "🏁"
                     }.get(log_type, "📝")
                     
-                    log_text += f"{type_emoji} **{log_type.upper()}** | Игра: {game_id} ({game_type})\n"
-                    log_text += f"   👤 Пользователь: {user_id} | ⏰ {timestamp}\n\n"
+                    log_entry = f"{type_emoji} **{log_type.upper()}**\n"
+                    log_entry += f"   🎮 Игра: {game_id} ({game_type})\n"
+                    log_entry += f"   👤 Пользователь: {user_id}\n"
+                    
+                    # Get extra_data (contains detailed information)
+                    extra_data = log.get("extra_data", {})
+                    
+                    # Add detailed info based on log type
+                    if log_type == "creation":
+                        invite_code = extra_data.get("invite_code") if isinstance(extra_data, dict) else None
+                        if invite_code:
+                            log_entry += f"   🔑 Код приглашения: {invite_code}\n"
+                    
+                    if log_type == "action" and action_type:
+                        log_entry += f"   📌 Действие: {action_type}\n"
+                        
+                        # Add detailed action information
+                        if isinstance(extra_data, dict):
+                            if action_type == "round_complete":
+                                player1_choice = extra_data.get("player1_choice")
+                                player2_choice = extra_data.get("player2_choice")
+                                winner = extra_data.get("winner")
+                                round_num = extra_data.get("round_number")
+                                player1_score = extra_data.get("player1_score")
+                                player2_score = extra_data.get("player2_score")
+                                player1_id = extra_data.get("player1_id")
+                                player2_id = extra_data.get("player2_id")
+                                
+                                if round_num is not None:
+                                    log_entry += f"   🎲 Раунд: {round_num}\n"
+                                if player1_choice:
+                                    log_entry += f"   ✊ Игрок 1: {player1_choice}\n"
+                                if player2_choice:
+                                    log_entry += f"   ✋ Игрок 2: {player2_choice}\n"
+                                if winner:
+                                    if winner == "player1" or winner == 1:
+                                        log_entry += f"   🏆 Победитель раунда: Игрок 1\n"
+                                    elif winner == "player2" or winner == 2:
+                                        log_entry += f"   🏆 Победитель раунда: Игрок 2\n"
+                                    else:
+                                        log_entry += f"   🤝 Ничья в раунде\n"
+                                if player1_score is not None and player2_score is not None:
+                                    log_entry += f"   📊 Счёт: {player1_score} - {player2_score}\n"
+                            
+                            elif action_type in ["player1_move", "player2_move"]:
+                                choice = extra_data.get("choice")
+                                if choice:
+                                    player_num = "1" if action_type == "player1_move" else "2"
+                                    log_entry += f"   ✋ Игрок {player_num} выбрал: {choice}\n"
+                    
+                    if log_type == "finish":
+                        if isinstance(extra_data, dict):
+                            winner_id = extra_data.get("winner_user_id")
+                            final_state = extra_data.get("final_state")
+                            
+                            if winner_id:
+                                log_entry += f"   🏆 Победитель игры: {winner_id}\n"
+                            else:
+                                log_entry += f"   🤝 Ничья в игре\n"
+                            
+                            if isinstance(final_state, dict):
+                                player1_score = final_state.get("player1_score")
+                                player2_score = final_state.get("player2_score")
+                                if player1_score is not None and player2_score is not None:
+                                    log_entry += f"   📊 Финальный счёт: {player1_score} - {player2_score}\n"
+                    
+                    log_entry += f"   ⏰ {timestamp}\n\n"
+                    
+                    # Check if adding this log would exceed Telegram's limit
+                    if len(current_message + log_entry) > 4000:
+                        # Send current message
+                        await message.reply(
+                            current_message,
+                            parse_mode="Markdown",
+                            reply_markup=admin_keyboard(message.from_user.id) if i == len(logs) else None
+                        )
+                        # Start new message
+                        current_message = f"📋 **Логи игр (продолжение)**\n\n{log_entry}"
+                    else:
+                        current_message += log_entry
                 
-                if len(logs) > 20:
-                    log_text += f"\n_Показано 20 из {len(logs)} логов_"
-                
-                await message.reply(
-                    log_text,
-                    parse_mode="Markdown",
-                    reply_markup=admin_keyboard(message.from_user.id)
-                )
+                # Send remaining logs
+                if current_message.strip() != log_text.strip():
+                    await message.reply(
+                        current_message,
+                        parse_mode="Markdown",
+                        reply_markup=admin_keyboard(message.from_user.id)
+                    )
+                else:
+                    # All logs fit in one message
+                    await message.reply(
+                        current_message,
+                        parse_mode="Markdown",
+                        reply_markup=admin_keyboard(message.from_user.id)
+                    )
             else:
                 await message.reply(
                     f"❌ Ошибка при получении логов: {response.status_code}",

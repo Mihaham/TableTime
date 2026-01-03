@@ -69,8 +69,8 @@ async def log_event(request: LogEventRequest):
         raise HTTPException(status_code=500, detail=f"Failed to log game event: {str(e)}")
 
 @router.get("/all")
-async def get_all_logs(limit: int = 100, offset: int = 0, game_type: Optional[str] = None):
-    """Get all game logs (admin only)"""
+async def get_all_logs(limit: int = 1000, offset: int = 0, game_type: Optional[str] = None):
+    """Get all game logs (admin only). Default limit is 1000 to show all logs."""
     try:
         logs = await Database.get_all_logs(limit=limit, offset=offset, game_type=game_type)
         return {"logs": logs, "count": len(logs)}

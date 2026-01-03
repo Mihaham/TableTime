@@ -51,6 +51,9 @@ async def create_game(request: CreateGameRequest):
     
     games[invite_code] = game
     
+    # Log game creation
+    log_game_creation(invite_code, request.player1_id, invite_code)
+    
     return game
 
 @router.post("/join", response_model=GameState)
@@ -112,7 +115,15 @@ async def make_move(action: GameAction):
     if game.player1_choice is not None and game.player2_choice is not None:
         # Determine winner of this round
         winner = determine_winner(game.player1_choice, game.player2_choice)
-        # Log round completion
+        # Log round completion with detailed info
+        round_winner_info = None
+        if winner == 1:
+            round_winner_info = "player1"
+        elif winner == 2:
+            round_winner_info = "player2"
+        else:
+            round_winner_info = "tie"
+        
         log_game_action(
             action.game_id, 
             action.user_id, 
@@ -121,7 +132,11 @@ async def make_move(action: GameAction):
                 "round_number": game.round_number,
                 "player1_choice": game.player1_choice.value,
                 "player2_choice": game.player2_choice.value,
-                "winner": winner
+                "player1_id": game.player1_id,
+                "player2_id": game.player2_id,
+                "winner": round_winner_info,
+                "player1_score": game.player1_score,
+                "player2_score": game.player2_score
             }
         )
         game.last_round_winner = winner

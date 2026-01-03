@@ -1,7 +1,8 @@
 import asyncpg
-from app.config import DATABASE_URL
+from app.config import POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+import json
 
 class Database:
     _pool: Optional[asyncpg.Pool] = None
@@ -9,7 +10,13 @@ class Database:
     @classmethod
     async def get_pool(cls):
         if cls._pool is None:
-            cls._pool = await asyncpg.create_pool(DATABASE_URL)
+            cls._pool = await asyncpg.create_pool(
+                host=POSTGRES_HOST,
+                port=POSTGRES_PORT,
+                user=POSTGRES_USER,
+                password=POSTGRES_PASSWORD,
+                database=POSTGRES_DB
+            )
         return cls._pool
 
     @classmethod
@@ -46,7 +53,6 @@ class Database:
     async def log_game_action(cls, game_id: int, game_type: str, user_id: int, action_type: str, action_data: Optional[Dict[str, Any]] = None):
         pool = await cls.get_pool()
         async with pool.acquire() as conn:
-            import json
             await conn.execute(
                 """
                 INSERT INTO game_action_logs (game_id, game_type, user_id, action_type, action_data)
@@ -60,7 +66,6 @@ class Database:
                               winner_user_id: Optional[int] = None, final_state: Optional[Dict[str, Any]] = None):
         pool = await cls.get_pool()
         async with pool.acquire() as conn:
-            import json
             await conn.execute(
                 """
                 INSERT INTO game_finish_logs (game_id, game_type, finished_by_user_id, winner_user_id, final_state)
@@ -74,7 +79,6 @@ class Database:
                              event_type: str, event_message: Optional[str] = None, event_data: Optional[Dict[str, Any]] = None):
         pool = await cls.get_pool()
         async with pool.acquire() as conn:
-            import json
             await conn.execute(
                 """
                 INSERT INTO game_event_logs (game_id, game_type, user_id, event_type, event_message, event_data)
@@ -84,66 +88,96 @@ class Database:
             )
 
     @classmethod
-    async def get_all_logs(cls, limit: int = 100, offset: int = 0, game_type: Optional[str] = None):
+    async def get_all_logs(cls, limit: int = 1000, offset: int = 0, game_type: Optional[str] = None):
         """Get all logs from all tables, ordered by time"""
         pool = await cls.get_pool()
         async with pool.acquire() as conn:
-            logs = []
+            # Build the query with UNION ALL to combine all log types
+            queries = []
+            params = []
+            param_count = 0
             
-            # Get creation logs
-            query = """
+            # Creation logs
+            creation_query = """
                 SELECT 'creation' as log_type, id, game_id, game_type, creator_user_id as user_id, 
-                       created_at as timestamp, NULL as action_type, NULL as event_type
+                       created_at as timestamp, NULL::text as action_type,
+                       jsonb_build_object('invite_code', invite_code) as extra_data
                 FROM game_creation_logs
+                WHERE 1=1
             """
             if game_type:
-                query += f" WHERE game_type = '{game_type}'"
-            query += " ORDER BY created_at DESC LIMIT $1 OFFSET $2"
+                param_count += 1
+                creation_query += f" AND game_type = ${param_count}"
+                params.append(game_type)
+            queries.append(creation_query)
             
-            creation_logs = await conn.fetch(query, limit, offset)
-            logs.extend([dict(row) for row in creation_logs])
-            
-            # Get join logs
-            query = """
+            # Join logs
+            join_query = """
                 SELECT 'join' as log_type, id, game_id, game_type, user_id, 
-                       joined_at as timestamp, NULL as action_type, NULL as event_type
+                       joined_at as timestamp, NULL::text as action_type,
+                       NULL::jsonb as extra_data
                 FROM game_join_logs
+                WHERE 1=1
             """
             if game_type:
-                query += f" WHERE game_type = '{game_type}'"
-            query += " ORDER BY joined_at DESC LIMIT $1 OFFSET $2"
+                param_count += 1
+                join_query += f" AND game_type = ${param_count}"
+                params.append(game_type)
+            queries.append(join_query)
             
-            join_logs = await conn.fetch(query, limit, offset)
-            logs.extend([dict(row) for row in join_logs])
-            
-            # Get action logs
-            query = """
+            # Action logs - need to include action_type and action_data
+            action_query = """
                 SELECT 'action' as log_type, id, game_id, game_type, user_id, 
-                       created_at as timestamp, action_type, NULL as event_type
+                       created_at as timestamp, action_type,
+                       action_data as extra_data
                 FROM game_action_logs
+                WHERE 1=1
             """
             if game_type:
-                query += f" WHERE game_type = '{game_type}'"
-            query += " ORDER BY created_at DESC LIMIT $1 OFFSET $2"
+                param_count += 1
+                action_query += f" AND game_type = ${param_count}"
+                params.append(game_type)
+            queries.append(action_query)
             
-            action_logs = await conn.fetch(query, limit, offset)
-            logs.extend([dict(row) for row in action_logs])
-            
-            # Get finish logs
-            query = """
+            # Finish logs
+            finish_query = """
                 SELECT 'finish' as log_type, id, game_id, game_type, finished_by_user_id as user_id, 
-                       finished_at as timestamp, NULL as action_type, NULL as event_type
+                       finished_at as timestamp, NULL::text as action_type,
+                       jsonb_build_object('winner_user_id', winner_user_id, 'final_state', final_state) as extra_data
                 FROM game_finish_logs
+                WHERE 1=1
             """
             if game_type:
-                query += f" WHERE game_type = '{game_type}'"
-            query += " ORDER BY finished_at DESC LIMIT $1 OFFSET $2"
+                param_count += 1
+                finish_query += f" AND game_type = ${param_count}"
+                params.append(game_type)
+            queries.append(finish_query)
             
-            finish_logs = await conn.fetch(query, limit, offset)
-            logs.extend([dict(row) for row in finish_logs])
+            # Combine all queries with UNION ALL
+            combined_query = " UNION ALL ".join(queries)
+            combined_query += " ORDER BY timestamp DESC"
             
-            # Sort all logs by timestamp
-            logs.sort(key=lambda x: x['timestamp'], reverse=True)
+            if limit > 0:
+                param_count += 1
+                combined_query += f" LIMIT ${param_count}"
+                params.append(limit)
             
-            return logs[:limit]
-
+            if offset > 0:
+                param_count += 1
+                combined_query += f" OFFSET ${param_count}"
+                params.append(offset)
+            
+            rows = await conn.fetch(combined_query, *params)
+            logs = []
+            for row in rows:
+                log_dict = dict(row)
+                # Parse JSONB fields
+                if log_dict.get('extra_data'):
+                    if isinstance(log_dict['extra_data'], str):
+                        try:
+                            log_dict['extra_data'] = json.loads(log_dict['extra_data'])
+                        except:
+                            pass
+                logs.append(log_dict)
+            
+            return logs
