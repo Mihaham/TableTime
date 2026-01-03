@@ -8,6 +8,7 @@ from app.models import (
     JoinGameRequest,
     FinishGameRequest
 )
+from app.utils import log_game_creation, log_game_join, log_game_action, log_game_finish
 from typing import Dict, Optional
 import random
 
@@ -69,6 +70,9 @@ async def join_game(request: JoinGameRequest):
     game.player2_id = request.player2_id
     game.status = "playing"
     
+    # Log game join
+    log_game_join(request.game_id, request.player2_id)
+    
     return game
 
 @router.post("/action", response_model=GameActionResponse)
@@ -94,10 +98,12 @@ async def make_move(action: GameAction):
         if game.player1_choice is not None:
             raise HTTPException(status_code=400, detail="Player 1 has already made their choice for this round")
         game.player1_choice = action.choice
+        log_game_action(action.game_id, action.user_id, "player1_move", {"choice": action.choice.value})
     else:
         if game.player2_choice is not None:
             raise HTTPException(status_code=400, detail="Player 2 has already made their choice for this round")
         game.player2_choice = action.choice
+        log_game_action(action.game_id, action.user_id, "player2_move", {"choice": action.choice.value})
     
     message = f"Player {1 if is_player1 else 2} chose {action.choice.value}"
     round_result = None
@@ -106,6 +112,18 @@ async def make_move(action: GameAction):
     if game.player1_choice is not None and game.player2_choice is not None:
         # Determine winner of this round
         winner = determine_winner(game.player1_choice, game.player2_choice)
+        # Log round completion
+        log_game_action(
+            action.game_id, 
+            action.user_id, 
+            "round_complete",
+            {
+                "round_number": game.round_number,
+                "player1_choice": game.player1_choice.value,
+                "player2_choice": game.player2_choice.value,
+                "winner": winner
+            }
+        )
         game.last_round_winner = winner
         
         if winner == 1:
@@ -176,6 +194,14 @@ async def finish_game(request: FinishGameRequest):
         game.winner = game.player2_id
     else:
         game.winner = None  # Tie
+    
+    # Log game finish
+    final_state = {
+        "player1_score": game.player1_score,
+        "player2_score": game.player2_score,
+        "winner": game.winner
+    }
+    log_game_finish(request.game_id, request.user_id, game.winner, final_state)
     
     return game
 

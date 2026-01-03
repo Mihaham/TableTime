@@ -8,7 +8,8 @@ from functools import wraps
 
 from config import ADMIN_USER_ID
 from utils.keyboard import admin_keyboard, start_keyboard
-from utils.buttons import admin_status_button, admin_back_button
+from utils.buttons import admin_status_button, admin_logs_button, admin_back_button
+from utils.urls import logging_service_url
 from utils.utils import is_admin
 
 router = Router()
@@ -141,9 +142,11 @@ async def admin_help(message: Message, bot: Bot):
     """Show available admin commands"""
     help_text = "🔐 **Админ-панель**\n\n"
     help_text += "**Кнопки:**\n"
-    help_text += f"• {admin_status_button} - Проверить статус всех сервисов\n\n"
+    help_text += f"• {admin_status_button} - Проверить статус всех сервисов\n"
+    help_text += f"• {admin_logs_button} - Просмотреть логи игр\n\n"
     help_text += "**Команды:**\n"
     help_text += "• `/status` - Проверить статус всех сервисов\n"
+    help_text += "• `/logs` - Просмотреть логи игр\n"
     help_text += "• `/admin` - Показать это сообщение\n"
     
     await message.reply(
@@ -151,3 +154,70 @@ async def admin_help(message: Message, bot: Bot):
         parse_mode="Markdown",
         reply_markup=admin_keyboard(message.from_user.id)
     )
+
+@router.message(F.text == admin_logs_button)
+@router.message(Command("logs"))
+@admin_only
+async def show_game_logs(message: Message, bot: Bot):
+    """Show game logs"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{logging_service_url}/all", params={"limit": 50})
+            if response.status_code == 200:
+                data = response.json()
+                logs = data.get("logs", [])
+                
+                if not logs:
+                    await message.reply(
+                        "📋 Логи игр пусты. Пока нет записанных событий.",
+                        reply_markup=admin_keyboard(message.from_user.id)
+                    )
+                    return
+                
+                # Format logs
+                log_text = "📋 **Последние логи игр:**\n\n"
+                
+                for i, log in enumerate(logs[:20], 1):  # Show first 20 logs
+                    log_type = log.get("log_type", "unknown")
+                    game_id = log.get("game_id", "N/A")
+                    game_type = log.get("game_type", "N/A")
+                    user_id = log.get("user_id", "N/A")
+                    timestamp = log.get("timestamp", "N/A")
+                    
+                    # Format timestamp
+                    if timestamp and timestamp != "N/A":
+                        try:
+                            if isinstance(timestamp, str):
+                                timestamp = timestamp.split(".")[0]  # Remove microseconds
+                        except:
+                            pass
+                    
+                    # Format log type emoji
+                    type_emoji = {
+                        "creation": "🆕",
+                        "join": "➕",
+                        "action": "🎮",
+                        "finish": "🏁"
+                    }.get(log_type, "📝")
+                    
+                    log_text += f"{type_emoji} **{log_type.upper()}** | Игра: {game_id} ({game_type})\n"
+                    log_text += f"   👤 Пользователь: {user_id} | ⏰ {timestamp}\n\n"
+                
+                if len(logs) > 20:
+                    log_text += f"\n_Показано 20 из {len(logs)} логов_"
+                
+                await message.reply(
+                    log_text,
+                    parse_mode="Markdown",
+                    reply_markup=admin_keyboard(message.from_user.id)
+                )
+            else:
+                await message.reply(
+                    f"❌ Ошибка при получении логов: {response.status_code}",
+                    reply_markup=admin_keyboard(message.from_user.id)
+                )
+    except Exception as e:
+        await message.reply(
+            f"❌ Ошибка при получении логов: {str(e)}",
+            reply_markup=admin_keyboard(message.from_user.id)
+        )

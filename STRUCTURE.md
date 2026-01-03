@@ -2,6 +2,10 @@
 
 This document describes the structure and organization of the TableTime microservices platform.
 
+For detailed architecture and service communication flow, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+For detailed architecture and service communication flow, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Services Overview
 
 ### Core Services
@@ -185,6 +189,7 @@ Service URLs use service names (e.g., `http://gameengine:8000`).
 
 - `docker-compose.yml` - Service orchestration
 - `GAME_TEMPLATE.md` - Guide for adding games
+- `ARCHITECTURE.md` - Detailed architecture and communication flows
 - `games/_TEMPLATE/` - Game template directory
 - `telegrambot/utils/game_config.py` - Game registry
 - `apigateway/app/config.py` - Service URLs

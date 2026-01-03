@@ -5,7 +5,7 @@ from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 from utils.utils import is_admin
 from utils.buttons import (
     start_button, join_button, monopoly_button, games_buttons, create_button,
-    admin_status_button, admin_back_button, admin_buttons
+    admin_status_button, admin_logs_button, admin_back_button, admin_buttons
 )
 from utils.texts import start_keyboard_placeholder, default_placeholder, games_placeholder, game_start_placeholder
 
@@ -44,6 +44,6 @@ def game_start_keyboard(user_id):
 
 def admin_keyboard(user_id):
     """Admin panel keyboard"""
-    buttons = [admin_status_button, admin_back_button]
+    buttons = [admin_status_button, admin_logs_button, admin_back_button]
     return make_keyboard_from_buttons(buttons=buttons,
                                       input_field_placeholder="Выберите действие администратора")

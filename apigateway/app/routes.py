@@ -5,7 +5,8 @@ from app.config import (
     USER_SERVICE_URL,
     GAME_ENGINE_SERVICE_URL,
     MONOPOLY_SERVICE_URL,
-    RPS_SERVICE_URL
+    RPS_SERVICE_URL,
+    LOGGING_SERVICE_URL
 )
 
 router = APIRouter()
@@ -61,5 +62,10 @@ async def proxy_monopoly(path: str, request: Request):
 @router.api_route("/api/v1/rps/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def proxy_rps(path: str, request: Request):
     return await proxy_request(RPS_SERVICE_URL, f"/api/v1/rps/{path}", request.method, request)
+
+# Logging Service Routes
+@router.api_route("/api/v1/logs/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_logs(path: str, request: Request):
+    return await proxy_request(LOGGING_SERVICE_URL, f"/api/v1/logs/{path}", request.method, request)
 
 

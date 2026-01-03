@@ -12,6 +12,7 @@ services:
       - POSTGRES_APP_PASSWORD=${POSTGRES_APP_PASSWORD:-app_password}
     volumes:
       - ./database/data:/var/lib/postgresql/data
+      - ./database/init-game-logs.sql:/docker-entrypoint-initdb.d/init-game-logs.sql
     networks:
       - game-network
     healthcheck:
@@ -51,10 +52,29 @@ services:
       context: ./games/rps
     depends_on:
       - gameengine
+      - loggingservice
     ports:
       - "8006:8000"
     networks:
       - game-network
+    environment:
+      - LOGGING_SERVICE_URL=http://apigateway:8000/api/v1/logs
+
+  loggingservice:
+    build:
+      context: ./games/loggingservice
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "8007:8000"
+    networks:
+      - game-network
+    environment:
+      - POSTGRES_APP_USER=${POSTGRES_APP_USER:-app_user}
+      - POSTGRES_APP_PASSWORD=${POSTGRES_APP_PASSWORD:-app_password}
+      - POSTGRES_DB=${POSTGRES_DB:-tabletime_db}
+      - POSTGRES_HOST=database
 
   apigateway:
     build:
@@ -64,6 +84,7 @@ services:
       - gameengine
       - monopoly
       - rps
+      - loggingservice
     ports:
       - "8000:8000"
     networks:
@@ -73,6 +94,7 @@ services:
       - GAME_ENGINE_SERVICE_URL=http://gameengine:8000
       - MONOPOLY_SERVICE_URL=http://monopoly:8000
       - RPS_SERVICE_URL=http://rps:8000
+      - LOGGING_SERVICE_URL=http://loggingservice:8000
 
   telegrambot:
     build:

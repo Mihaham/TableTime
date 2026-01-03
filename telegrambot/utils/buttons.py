@@ -6,6 +6,7 @@ start_button = "Начать игру🎨"
 
 # Admin buttons
 admin_status_button = "📊 Статус сервисов"
+admin_logs_button = "📋 Логи игр"
 admin_back_button = "◀️ Назад"
 
 # Games
@@ -14,7 +15,7 @@ monopoly_button = "Монополия 🏦"
 rps_button = "Камень Ножницы Бумага ✂️"
 
 games_buttons = [monopoly_button, rps_button]
-admin_buttons = [admin_status_button]
+admin_buttons = [admin_status_button, admin_logs_button]
 
 # Game action buttons
 rps_finish_button = "🏁 Завершить игру"
