@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from utils.keyboard import start_keyboard, games_keyboard, game_start_keyboard
 from utils.buttons import create_button, join_button, games_buttons, start_button, rps_button
 from utils.texts import start_text, games_placeholder, join_text, game_creation_text, success_join, game_is_starting, user_joined_text
-from utils.utils import create_game, join_game, check_button, send_seq_messages, start_game, get_rps_game_state, get_diceladders_game_state
+from utils.utils import create_game, join_game, check_button, send_seq_messages, start_game, get_rps_game_state, get_diceladders_game_state, get_monopoly_game_state, get_monopoly_game_by_user
 import requests
 from loguru import logger
 
@@ -229,6 +229,100 @@ async def start_game_handler(message : Message, bot : Bot, state: FSMContext):
                     return
             else:
                 logger.warning(f"game_id is None for dice-ladders game, user_id: {user_id}")
+                await message.reply("Ошибка: не найден код игры")
+                return
+        
+        # Handle Monopoly game start
+        if game_name == "Монополия 🏦":
+            # Use the game_id we already have (from state or retrieved from game engine)
+            if not game_id:
+                game_id = data.get("game_id")  # Fallback to state if not set
+            logger.info(f"Monopoly game detected, game_id: {game_id}")
+            if game_id:
+                # Get all player IDs from game engine
+                from utils.urls import game_engine_url
+                info_response = requests.get(f"{game_engine_url}/game/{game_id}/info")
+                if info_response.status_code != 200:
+                    await message.reply("Ошибка: не удалось получить информацию об игре")
+                    return
+                
+                game_info = info_response.json()
+                all_player_ids = game_info.get("player_ids", [])
+                
+                if not all_player_ids or user_id not in all_player_ids:
+                    await message.reply("Ошибка: вы не являетесь участником этой игры")
+                    return
+                
+                # Create game in monopoly service with the first player (host)
+                from utils.urls import monopoly_service_url
+                payload = {"player1_id": all_player_ids[0]}  # Host is first player
+                logger.info(f"Creating monopoly game with payload: {payload}")
+                response = requests.post(f"{monopoly_service_url}/create", json=payload)
+                logger.info(f"Monopoly create response: {response.status_code}, {response.text}")
+                if response.status_code == 200:
+                    game_data = response.json()
+                    service_game_id = game_data.get("game_id")
+                    await state.update_data(monopoly_game_id=service_game_id)
+                    
+                    # Join all other players to the monopoly service game
+                    for player_id in all_player_ids[1:]:
+                        join_payload = {"player_id": player_id, "game_id": service_game_id}
+                        join_response = requests.post(f"{monopoly_service_url}/join", json=join_payload)
+                        if join_response.status_code != 200:
+                            logger.warning(f"Failed to join player {player_id} to monopoly game {service_game_id}")
+                    
+                    # Explicitly start the game after all players have joined
+                    start_payload = {"player_id": all_player_ids[0], "game_id": service_game_id}
+                    start_response = requests.post(f"{monopoly_service_url}/start", json=start_payload)
+                    if start_response.status_code != 200:
+                        logger.warning(f"Failed to start monopoly game {service_game_id}: {start_response.status_code}, {start_response.text}")
+                        # Game might have auto-started on join, so continue anyway
+                    
+                    # Import monopoly handler
+                    from handlers.monopoly import monopoly_keyboard, send_board_image
+                    from utils.texts import monopoly_game_started
+                    
+                    # Get game state to send board to players
+                    state_response = requests.get(f"{monopoly_service_url}/{service_game_id}/state")
+                    logger.info(f"Getting monopoly game state, response: {state_response.status_code}")
+                    if state_response.status_code == 200:
+                        game_state = state_response.json()
+                        logger.info(f"Monopoly game state: {game_state}")
+                        current_turn_num = game_state.get("current_turn", 1)
+                        current_turn_player_id = game_state.get(f"player{current_turn_num}_id")
+                        logger.info(f"Current turn: {current_turn_num}, player_id: {current_turn_player_id}")
+                        
+                        # Send board to all players
+                        for pid in all_player_ids:
+                            try:
+                                if pid == current_turn_player_id:
+                                    await send_board_image(bot, pid, service_game_id, monopoly_game_started,
+                                                          reply_markup=monopoly_keyboard(show_finish=True))
+                                else:
+                                    await send_board_image(bot, pid, service_game_id, monopoly_game_started)
+                            except Exception as e:
+                                logger.error(f"Error sending board to player {pid}: {e}", exc_info=True)
+                    else:
+                        logger.error(f"Failed to get monopoly game state: {state_response.status_code}, {state_response.text}")
+                        # Fallback to text message
+                        for pid in all_player_ids:
+                            try:
+                                await bot.send_message(pid, monopoly_game_started)
+                            except Exception as e:
+                                logger.error(f"Error sending message to player {pid}: {e}", exc_info=True)
+                    
+                    # Start the game in game engine and notify other players
+                    ids = start_game(user_id)
+                    await send_seq_messages(bot, ids, game_is_starting, reply_markup=ReplyKeyboardRemove())
+                    logger.info(f"Monopoly game started successfully for players: {all_player_ids}")
+                    return
+                else:
+                    error_msg = f"Ошибка: не удалось создать игру в сервисе Монополия (status: {response.status_code})"
+                    logger.error(error_msg)
+                    await message.reply(error_msg)
+                    return
+            else:
+                logger.warning(f"game_id is None for monopoly game, user_id: {user_id}")
                 await message.reply("Ошибка: не найден код игры")
                 return
         

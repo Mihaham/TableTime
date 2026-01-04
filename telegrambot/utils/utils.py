@@ -195,6 +195,27 @@ def get_diceladders_game_by_user(user_id):
         logger.error(f"Error getting diceladders game by user {user_id}: {e}", exc_info=True)
     return None
 
+def get_monopoly_game_state(game_id):
+    """Get current monopoly game state"""
+    from utils.urls import monopoly_service_url
+    response = requests.get(f"{monopoly_service_url}/{game_id}/state")
+    if response.status_code == 404:
+        raise ValueError("Игра не найдена")
+    return response.json()
+
+def get_monopoly_game_by_user(user_id):
+    """Get monopoly game_id by user_id"""
+    from utils.urls import monopoly_service_url
+    try:
+        response = requests.get(f"{monopoly_service_url}/user/{user_id}/game")
+        if response.status_code == 200:
+            game_info = response.json()
+            return game_info.get("game_id")
+    except Exception as e:
+        from loguru import logger
+        logger.error(f"Error getting monopoly game by user {user_id}: {e}", exc_info=True)
+    return None
+
 def finish_rps_game(user_id, game_id):
     """Finish/end an RPS game"""
     payload = {"user_id": user_id, "game_id": game_id}

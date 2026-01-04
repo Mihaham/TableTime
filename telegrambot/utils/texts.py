@@ -31,3 +31,7 @@ rps_game_tie = "Ничья!"
 # Dice and Ladders Game messages
 diceladders_game_started = "🎲 Игра началась! Бросьте кость, чтобы начать!"
 diceladders_your_turn = "Ваш ход! Бросьте кость 🎲"
+
+# Monopoly Game messages
+monopoly_game_started = "🏦 Монополия началась! Бросьте кость, чтобы начать!"
+monopoly_your_turn = "Ваш ход! Бросьте кость 🎲"

@@ -1,9 +1,12 @@
 from aiogram import Router, Bot, F
-from aiogram.types import Message
+from aiogram.types import Message, BufferedInputFile
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 import httpx
 import asyncio
+import csv
+import io
+from datetime import datetime
 from functools import wraps
 
 from config import ADMIN_USER_ID
@@ -25,6 +28,86 @@ def escape_markdown(text):
     for char in special_chars:
         text = text.replace(char, f'\\{char}')
     return text
+
+def format_timestamp(timestamp):
+    """Format timestamp for display"""
+    if not timestamp or timestamp == "N/A":
+        return "N/A"
+    try:
+        if isinstance(timestamp, str):
+            # Try to parse and format
+            if "T" in timestamp:
+                dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+            return timestamp.split(".")[0].replace("T", " ")
+        return str(timestamp)
+    except:
+        return str(timestamp)
+
+def format_logs_as_table(logs):
+    """Format logs as a markdown table"""
+    if not logs:
+        return "📋 Логи игр пусты."
+    
+    # Create table header
+    table = f"📋 *Логи игр \\(всего: {len(logs)}\\)*\n\n"
+    table += "```\n"
+    table += f"{'Тип':<12} {'ID игры':<10} {'Тип игры':<15} {'Пользователь':<12} {'Действие':<20} {'Время':<20}\n"
+    table += "-" * 100 + "\n"
+    
+    # Add rows (limit to 50 for readability)
+    for log in logs[:50]:
+        log_type = str(log.get("log_type", "unknown"))[:10]
+        game_id = str(log.get("game_id", "N/A"))[:8]
+        game_type = str(log.get("game_type", "N/A") or "N/A")[:13]
+        user_id = str(log.get("user_id", "N/A"))[:10]
+        action_type = str(log.get("action_type") or "-")[:18]
+        timestamp = format_timestamp(log.get("timestamp", "N/A"))[:18]
+        
+        table += f"{log_type:<12} {game_id:<10} {game_type:<15} {user_id:<12} {action_type:<20} {timestamp:<20}\n"
+    
+    if len(logs) > 50:
+        table += f"\n... и еще {len(logs) - 50} записей\n"
+    
+    table += "```"
+    return table
+
+def generate_csv_file(logs):
+    """Generate CSV file from logs"""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        "Тип", "ID игры", "Тип игры", "ID пользователя", 
+        "Тип действия", "Время", "Дополнительные данные"
+    ])
+    
+    # Write data rows
+    for log in logs:
+        log_type = log.get("log_type", "unknown")
+        game_id = log.get("game_id", "N/A")
+        game_type = log.get("game_type", "N/A") or "N/A"
+        user_id = log.get("user_id", "N/A")
+        action_type = log.get("action_type") or ""
+        timestamp = format_timestamp(log.get("timestamp", "N/A"))
+        
+        # Format extra_data as JSON string
+        extra_data = log.get("extra_data", {})
+        if isinstance(extra_data, dict):
+            import json
+            extra_data_str = json.dumps(extra_data, ensure_ascii=False)
+        else:
+            extra_data_str = str(extra_data) if extra_data else ""
+        
+        writer.writerow([
+            log_type, game_id, game_type, user_id,
+            action_type, timestamp, extra_data_str
+        ])
+    
+    csv_content = output.getvalue()
+    output.close()
+    return csv_content.encode('utf-8-sig')  # UTF-8 with BOM for Excel compatibility
 
 # Microservice URLs for health checks
 MICROSERVICES = {
@@ -172,7 +255,7 @@ async def admin_help(message: Message, bot: Bot):
 @router.message(Command("logs"))
 @admin_only
 async def show_game_logs(message: Message, bot: Bot):
-    """Show all game logs with detailed information"""
+    """Show all game logs as a table and CSV file"""
     try:
         await message.reply("📋 Загрузка логов...", reply_markup=admin_keyboard(message.from_user.id))
         
@@ -192,138 +275,29 @@ async def show_game_logs(message: Message, bot: Bot):
                     )
                     return
                 
-                # Format logs with detailed information
-                log_text = f"📋 *Все логи игр \\(всего: {len(logs)}\\)*\n\n"
+                # Format logs as table
+                table_text = format_logs_as_table(logs)
                 
-                # Telegram message limit is 4096 characters, so we'll send multiple messages if needed
-                current_message = log_text
+                # Send table
+                await message.reply(
+                    table_text,
+                    parse_mode="Markdown",
+                    reply_markup=admin_keyboard(message.from_user.id)
+                )
                 
-                for i, log in enumerate(logs, 1):
-                    log_type = log.get("log_type", "unknown")
-                    game_id = log.get("game_id", "N/A")
-                    game_type = log.get("game_type", "N/A")
-                    user_id = log.get("user_id", "N/A")
-                    timestamp = log.get("timestamp", "N/A")
-                    action_type = log.get("action_type")
-                    
-                    # Format timestamp
-                    if timestamp and timestamp != "N/A":
-                        try:
-                            if isinstance(timestamp, str):
-                                timestamp = timestamp.split(".")[0].replace("T", " ")  # Remove microseconds and format
-                        except:
-                            pass
-                    
-                    # Escape user data for Markdown
-                    game_id = escape_markdown(game_id)
-                    game_type = escape_markdown(game_type)
-                    user_id = escape_markdown(user_id)
-                    timestamp = escape_markdown(timestamp)
-                    log_type_escaped = escape_markdown(log_type.upper())
-                    
-                    # Format log type emoji
-                    type_emoji = {
-                        "creation": "🆕",
-                        "join": "➕",
-                        "action": "🎮",
-                        "finish": "🏁"
-                    }.get(log_type, "📝")
-                    
-                    log_entry = f"{type_emoji} *{log_type_escaped}*\n"
-                    log_entry += f"   🎮 Игра: {game_id} \\({game_type}\\)\n"
-                    log_entry += f"   👤 Пользователь: {user_id}\n"
-                    
-                    # Get extra_data (contains detailed information)
-                    extra_data = log.get("extra_data", {})
-                    
-                    # Add detailed info based on log type
-                    if log_type == "creation":
-                        invite_code = extra_data.get("invite_code") if isinstance(extra_data, dict) else None
-                        if invite_code:
-                            log_entry += f"   🔑 Код приглашения: {escape_markdown(invite_code)}\n"
-                    
-                    if log_type == "action" and action_type:
-                        log_entry += f"   📌 Действие: {escape_markdown(action_type)}\n"
-                        
-                        # Add detailed action information
-                        if isinstance(extra_data, dict):
-                            if action_type == "round_complete":
-                                player1_choice = extra_data.get("player1_choice")
-                                player2_choice = extra_data.get("player2_choice")
-                                winner = extra_data.get("winner")
-                                round_num = extra_data.get("round_number")
-                                player1_score = extra_data.get("player1_score")
-                                player2_score = extra_data.get("player2_score")
-                                player1_id = extra_data.get("player1_id")
-                                player2_id = extra_data.get("player2_id")
-                                
-                                if round_num is not None:
-                                    log_entry += f"   🎲 Раунд: {escape_markdown(round_num)}\n"
-                                if player1_choice:
-                                    log_entry += f"   ✊ Игрок 1: {escape_markdown(player1_choice)}\n"
-                                if player2_choice:
-                                    log_entry += f"   ✋ Игрок 2: {escape_markdown(player2_choice)}\n"
-                                if winner:
-                                    if winner == "player1" or winner == 1:
-                                        log_entry += f"   🏆 Победитель раунда: Игрок 1\n"
-                                    elif winner == "player2" or winner == 2:
-                                        log_entry += f"   🏆 Победитель раунда: Игрок 2\n"
-                                    else:
-                                        log_entry += f"   🤝 Ничья в раунде\n"
-                                if player1_score is not None and player2_score is not None:
-                                    log_entry += f"   📊 Счёт: {escape_markdown(player1_score)} - {escape_markdown(player2_score)}\n"
-                            
-                            elif action_type in ["player1_move", "player2_move"]:
-                                choice = extra_data.get("choice")
-                                if choice:
-                                    player_num = "1" if action_type == "player1_move" else "2"
-                                    log_entry += f"   ✋ Игрок {player_num} выбрал: {escape_markdown(choice)}\n"
-                    
-                    if log_type == "finish":
-                        if isinstance(extra_data, dict):
-                            winner_id = extra_data.get("winner_user_id")
-                            final_state = extra_data.get("final_state")
-                            
-                            if winner_id:
-                                log_entry += f"   🏆 Победитель игры: {escape_markdown(winner_id)}\n"
-                            else:
-                                log_entry += f"   🤝 Ничья в игре\n"
-                            
-                            if isinstance(final_state, dict):
-                                player1_score = final_state.get("player1_score")
-                                player2_score = final_state.get("player2_score")
-                                if player1_score is not None and player2_score is not None:
-                                    log_entry += f"   📊 Финальный счёт: {escape_markdown(player1_score)} - {escape_markdown(player2_score)}\n"
-                    
-                    log_entry += f"   ⏰ {timestamp}\n\n"
-                    
-                    # Check if adding this log would exceed Telegram's limit
-                    if len(current_message + log_entry) > 4000:
-                        # Send current message
-                        await message.reply(
-                            current_message,
-                            parse_mode="Markdown",
-                            reply_markup=admin_keyboard(message.from_user.id) if i == len(logs) else None
-                        )
-                        # Start new message
-                        current_message = f"📋 *Логи игр \\(продолжение\\)*\n\n{log_entry}"
-                    else:
-                        current_message += log_entry
+                # Generate and send CSV file
+                csv_content = generate_csv_file(logs)
+                csv_file = BufferedInputFile(
+                    csv_content,
+                    filename=f"game_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                )
                 
-                # Send remaining logs
-                if current_message.strip() != log_text.strip():
-                    await message.reply(
-                        current_message,
-                        parse_mode="Markdown",
-                        reply_markup=admin_keyboard(message.from_user.id)
-                    )
-                else:
-                    # All logs fit in one message
-                    await message.reply(
-                        current_message,
-                        parse_mode="Markdown",
-                        reply_markup=admin_keyboard(message.from_user.id)
-                    )
+                await bot.send_document(
+                    message.chat.id,
+                    csv_file,
+                    caption=f"📊 CSV файл с логами игр ({len(logs)} записей)"
+                )
+                
             else:
                 await message.reply(
                     f"❌ Ошибка при получении логов: {response.status_code}",

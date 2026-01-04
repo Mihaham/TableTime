@@ -19,6 +19,7 @@ from utils.texts import (
     rps_game_tie
 )
 from utils.utils import create_rps_game, join_rps_game, make_rps_move, get_rps_game_state, send_seq_messages, finish_rps_game
+from utils.player_utils import get_username
 
 router = Router()
 
@@ -145,19 +146,24 @@ async def handle_rps_move(callback: CallbackQuery, bot: Bot, state: FSMContext):
             player2_score = game_state["player2_score"]
             round_result = result.get("round_result", "")
             
+            # Get usernames
+            player_username = callback.from_user.username or callback.from_user.first_name or f"User_{user_id}"
+            player1_username = await get_username(bot, player1_id)
+            player2_username = await get_username(bot, player2_id) if player2_id else "Player 2"
+            
             choice_name = CHOICE_NAMES.get(choice, choice)
             
             # Send move confirmation
             await callback.message.edit_text(
                 f"{rps_move_made.format(choice=choice_name)}\n\n"
-                f"{rps_game_scores.format(player1_score=player1_score, player2_score=player2_score)}"
+                f"Счет:\n{player1_username}: {player1_score}\n{player2_username}: {player2_score}"
             )
             
             # If round is complete, send result to both players
             if round_result:
                 result_message = (
                     f"{rps_round_result}\n{round_result}\n\n"
-                    f"{rps_game_scores.format(player1_score=player1_score, player2_score=player2_score)}\n\n"
+                    f"Счет:\n{player1_username}: {player1_score}\n{player2_username}: {player2_score}\n\n"
                     f"{rps_choose_move}"
                 )
                 
@@ -168,7 +174,13 @@ async def handle_rps_move(callback: CallbackQuery, bot: Bot, state: FSMContext):
                     reply_markup=rps_move_keyboard_inline(show_finish=True)
                 )
             else:
-                # Waiting for opponent
+                # Waiting for opponent - notify other player
+                opponent_id = player2_id if user_id == player1_id else player1_id
+                if opponent_id:
+                    try:
+                        await bot.send_message(opponent_id, f"{player_username} сделал ход. Ожидание вашего хода...")
+                    except:
+                        pass
                 await callback.message.answer(rps_waiting_for_opponent)
         else:
             await callback.answer("Ход принят", show_alert=False)
@@ -264,15 +276,19 @@ async def handle_rps_finish(callback: CallbackQuery, bot: Bot, state: FSMContext
         player2_score = game_state["player2_score"]
         winner_id = game_state.get("winner")
         
+        # Get usernames
+        player1_username = await get_username(bot, player1_id)
+        player2_username = await get_username(bot, player2_id) if player2_id else "Player 2"
+        
         # Build final message
         final_message = f"{rps_game_finished}\n\n"
-        final_message += f"{rps_game_final_score.format(player1_score=player1_score, player2_score=player2_score)}\n\n"
+        final_message += f"Финальный счет:\n{player1_username}: {player1_score}\n{player2_username}: {player2_score}\n\n"
         
         if winner_id:
             if winner_id == player1_id:
-                final_message += f"{rps_game_winner.format(player_num=1)}"
+                final_message += f"Победитель: {player1_username}"
             else:
-                final_message += f"{rps_game_winner.format(player_num=2)}"
+                final_message += f"Победитель: {player2_username}"
         else:
             final_message += rps_game_tie
         

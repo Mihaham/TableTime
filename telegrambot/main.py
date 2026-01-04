@@ -7,7 +7,7 @@ from aiogram.types import Update
 from aiogram.exceptions import TelegramNetworkError, TelegramAPIError
 # from middlewares.database import DatabaseMiddleware # Надо потом переписать класс под новую структуру
 from config import TOKEN
-from handlers import admin, users, rps, diceladders
+from handlers import admin, users, rps, diceladders, monopoly
 
 # Configure loguru
 logger.remove()  # Remove default handler
@@ -45,7 +45,7 @@ async def main():
     # Register global error handler
     dp.errors.register(errors_handler)
 
-    routers = (admin.router, users.router, rps.router, diceladders.router)
+    routers = (admin.router, users.router, rps.router, diceladders.router, monopoly.router)
     for router in routers:
         dp.include_router(router)
 

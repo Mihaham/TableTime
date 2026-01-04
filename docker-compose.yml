@@ -42,10 +42,13 @@ services:
       context: ./games/monopoly
     depends_on:
       - gameengine
+      - loggingservice
     ports:
       - "8004:8000"
     networks:
       - game-network
+    environment:
+      - LOGGING_SERVICE_URL=http://apigateway:8000/api/v1/logs
 
   rps:
     build:
