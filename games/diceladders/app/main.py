@@ -1,6 +1,5 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.routes import router
+from app.endpoints import game
 from loguru import logger
 import sys
 
@@ -14,22 +13,18 @@ logger.add(
 )
 
 app = FastAPI(
-    title="API Gateway",
-    version="1.0.0",
-    description="Central API Gateway for TableTime microservices"
+    title="Dice and Ladders Game Service",
+    version="0.1.0",
+    description="Microservice for Dice and Ladders game logic"
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app.include_router(
+    game.router,
+    prefix="/api/v1/diceladders",
+    tags=["diceladders"]
 )
-
-app.include_router(router)
 
 @app.get("/health")
 async def health_check():
     logger.info("Health check requested")
-    return {"status": "ok", "service": "apigateway"}
+    return {"status": "ok", "service": "diceladders"}

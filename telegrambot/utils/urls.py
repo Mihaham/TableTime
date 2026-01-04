@@ -1,3 +1,4 @@
 game_engine_url = "http://gameengine:8000/api/v1"
 rps_service_url = "http://apigateway:8000/api/v1/rps"
+diceladders_service_url = "http://apigateway:8000/api/v1/diceladders"
 logging_service_url = "http://apigateway:8000/api/v1/logs"

@@ -81,6 +81,13 @@ class GamesEngine():
         for game in self.games:
             if user_id in game.get_user_ids():
                 return game.get_id()
+    
+    def get_game_by_invite_code(self, invite_code):
+        """Get game by invite code"""
+        for game in self.games:
+            if game.get_invite_code() == invite_code:
+                return game
+        return None
 
     def delete_game(self, game : Game):
         self.games.remove(game)
@@ -95,10 +102,13 @@ class GamesEngine():
         if self.check_user(user_id):
             raise GameAmountError("Пользователь уже присоединен к другой игре")
         for game in self.games:
-            if game.get_invite_code() == invite_code:
+            game_invite_code = game.get_invite_code()
+            if game_invite_code == invite_code:
                 game.add_user(User(user_id))
                 return True
-        raise ValueError("Invalid Invite Code")
+        # Log available games for debugging
+        available_codes = [g.get_invite_code() for g in self.games]
+        raise ValueError(f"Invalid Invite Code {invite_code}. Available codes: {available_codes}")
 
     def remove_user(self, user_id : int):
         for game in self.games:

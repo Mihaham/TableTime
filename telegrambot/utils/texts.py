@@ -27,3 +27,7 @@ rps_game_finished = "Игра завершена!"
 rps_game_final_score = "Финальный счет:\nИгрок 1: {player1_score}\nИгрок 2: {player2_score}"
 rps_game_winner = "Победитель: Игрок {player_num}"
 rps_game_tie = "Ничья!"
+
+# Dice and Ladders Game messages
+diceladders_game_started = "🎲 Игра началась! Бросьте кость, чтобы начать!"
+diceladders_your_turn = "Ваш ход! Бросьте кость 🎲"

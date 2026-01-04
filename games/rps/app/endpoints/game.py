@@ -11,6 +11,7 @@ from app.models import (
 from app.utils import log_game_creation, log_game_join, log_game_action, log_game_finish
 from typing import Dict, Optional
 import random
+from loguru import logger
 
 router = APIRouter()
 
@@ -36,6 +37,7 @@ def determine_winner(choice1: Choice, choice2: Choice) -> Optional[int]:
 @router.post("/create", response_model=GameState)
 async def create_game(request: CreateGameRequest):
     """Create a new rock-paper-scissors game"""
+    logger.info(f"Creating RPS game for player {request.player1_id}")
     # Generate 6-digit invite code (same format as other games: 100000-999999)
     invite_code = random.randint(100000, 999999)
     
@@ -50,6 +52,7 @@ async def create_game(request: CreateGameRequest):
     )
     
     games[invite_code] = game
+    logger.info(f"RPS game {invite_code} created successfully")
     
     # Log game creation
     log_game_creation(invite_code, request.player1_id, invite_code)

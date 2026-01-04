@@ -60,6 +60,19 @@ services:
     environment:
       - LOGGING_SERVICE_URL=http://apigateway:8000/api/v1/logs
 
+  diceladders:
+    build:
+      context: ./games/diceladders
+    depends_on:
+      - gameengine
+      - loggingservice
+    ports:
+      - "8008:8000"
+    networks:
+      - game-network
+    environment:
+      - LOGGING_SERVICE_URL=http://apigateway:8000/api/v1/logs
+
   loggingservice:
     build:
       context: ./games/loggingservice
@@ -84,6 +97,7 @@ services:
       - gameengine
       - monopoly
       - rps
+      - diceladders
       - loggingservice
     ports:
       - "8000:8000"
@@ -94,6 +108,7 @@ services:
       - GAME_ENGINE_SERVICE_URL=http://gameengine:8000
       - MONOPOLY_SERVICE_URL=http://monopoly:8000
       - RPS_SERVICE_URL=http://rps:8000
+      - DICELADDERS_SERVICE_URL=http://diceladders:8000
       - LOGGING_SERVICE_URL=http://loggingservice:8000
 
   telegrambot:

@@ -34,3 +34,29 @@ async def start_game(item: InputItem):
         raise HTTPException(status_code=404, detail="Not connected")
     except NotHostError:
         raise HTTPException(status_code=406, detail="Not host")
+
+@router.get("/game/{invite_code}/info")
+async def get_game_info(invite_code: int):
+    """Get game information by invite code"""
+    game = games.get_game_by_invite_code(invite_code)
+    if game is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return {
+        "invite_code": invite_code,
+        "game_name": game.name,
+        "player_ids": game.get_user_ids(),
+        "status": game.get_status()
+    }
+
+@router.get("/user/{user_id}/game")
+async def get_game_by_user(user_id: int):
+    """Get game information by user_id"""
+    game = games.get_game(user_id)
+    if game is None:
+        raise HTTPException(status_code=404, detail="User is not in any game")
+    return {
+        "invite_code": game.get_invite_code(),
+        "game_name": game.name,
+        "player_ids": game.get_user_ids(),
+        "status": game.get_status()
+    }

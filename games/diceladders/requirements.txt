@@ -1,7 +1,8 @@
 fastapi
 uvicorn[standard]
 pydantic
-asyncpg
-python-dotenv
+httpx
+requests
 loguru
+Pillow
 

@@ -14,6 +14,18 @@ from utils.utils import is_admin
 
 router = Router()
 
+def escape_markdown(text):
+    """Escape special Markdown characters"""
+    if text is None:
+        return "N/A"
+    if not isinstance(text, str):
+        text = str(text)
+    # Escape Markdown special characters
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    for char in special_chars:
+        text = text.replace(char, f'\\{char}')
+    return text
+
 # Microservice URLs for health checks
 MICROSERVICES = {
     "API Gateway": "http://apigateway:8000/health",
@@ -21,6 +33,7 @@ MICROSERVICES = {
     "Game Engine": "http://gameengine:8000/health",
     "Monopoly Service": "http://monopoly:8000/health",
     "RPS Service": "http://rps:8000/health",
+    "Dice and Ladders Service": "http://diceladders:8000/health",
 }
 
 
@@ -161,7 +174,11 @@ async def admin_help(message: Message, bot: Bot):
 async def show_game_logs(message: Message, bot: Bot):
     """Show all game logs with detailed information"""
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        await message.reply("📋 Загрузка логов...", reply_markup=admin_keyboard(message.from_user.id))
+        
+        # Use longer timeout and follow redirects
+        timeout = httpx.Timeout(30.0, connect=10.0)
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             # Get all logs (no limit or high limit)
             response = await client.get(f"{logging_service_url}/all", params={"limit": 1000})
             if response.status_code == 200:
@@ -176,7 +193,7 @@ async def show_game_logs(message: Message, bot: Bot):
                     return
                 
                 # Format logs with detailed information
-                log_text = f"📋 **Все логи игр (всего: {len(logs)})**\n\n"
+                log_text = f"📋 *Все логи игр \\(всего: {len(logs)}\\)*\n\n"
                 
                 # Telegram message limit is 4096 characters, so we'll send multiple messages if needed
                 current_message = log_text
@@ -197,6 +214,13 @@ async def show_game_logs(message: Message, bot: Bot):
                         except:
                             pass
                     
+                    # Escape user data for Markdown
+                    game_id = escape_markdown(game_id)
+                    game_type = escape_markdown(game_type)
+                    user_id = escape_markdown(user_id)
+                    timestamp = escape_markdown(timestamp)
+                    log_type_escaped = escape_markdown(log_type.upper())
+                    
                     # Format log type emoji
                     type_emoji = {
                         "creation": "🆕",
@@ -205,8 +229,8 @@ async def show_game_logs(message: Message, bot: Bot):
                         "finish": "🏁"
                     }.get(log_type, "📝")
                     
-                    log_entry = f"{type_emoji} **{log_type.upper()}**\n"
-                    log_entry += f"   🎮 Игра: {game_id} ({game_type})\n"
+                    log_entry = f"{type_emoji} *{log_type_escaped}*\n"
+                    log_entry += f"   🎮 Игра: {game_id} \\({game_type}\\)\n"
                     log_entry += f"   👤 Пользователь: {user_id}\n"
                     
                     # Get extra_data (contains detailed information)
@@ -216,10 +240,10 @@ async def show_game_logs(message: Message, bot: Bot):
                     if log_type == "creation":
                         invite_code = extra_data.get("invite_code") if isinstance(extra_data, dict) else None
                         if invite_code:
-                            log_entry += f"   🔑 Код приглашения: {invite_code}\n"
+                            log_entry += f"   🔑 Код приглашения: {escape_markdown(invite_code)}\n"
                     
                     if log_type == "action" and action_type:
-                        log_entry += f"   📌 Действие: {action_type}\n"
+                        log_entry += f"   📌 Действие: {escape_markdown(action_type)}\n"
                         
                         # Add detailed action information
                         if isinstance(extra_data, dict):
@@ -234,11 +258,11 @@ async def show_game_logs(message: Message, bot: Bot):
                                 player2_id = extra_data.get("player2_id")
                                 
                                 if round_num is not None:
-                                    log_entry += f"   🎲 Раунд: {round_num}\n"
+                                    log_entry += f"   🎲 Раунд: {escape_markdown(round_num)}\n"
                                 if player1_choice:
-                                    log_entry += f"   ✊ Игрок 1: {player1_choice}\n"
+                                    log_entry += f"   ✊ Игрок 1: {escape_markdown(player1_choice)}\n"
                                 if player2_choice:
-                                    log_entry += f"   ✋ Игрок 2: {player2_choice}\n"
+                                    log_entry += f"   ✋ Игрок 2: {escape_markdown(player2_choice)}\n"
                                 if winner:
                                     if winner == "player1" or winner == 1:
                                         log_entry += f"   🏆 Победитель раунда: Игрок 1\n"
@@ -247,13 +271,13 @@ async def show_game_logs(message: Message, bot: Bot):
                                     else:
                                         log_entry += f"   🤝 Ничья в раунде\n"
                                 if player1_score is not None and player2_score is not None:
-                                    log_entry += f"   📊 Счёт: {player1_score} - {player2_score}\n"
+                                    log_entry += f"   📊 Счёт: {escape_markdown(player1_score)} - {escape_markdown(player2_score)}\n"
                             
                             elif action_type in ["player1_move", "player2_move"]:
                                 choice = extra_data.get("choice")
                                 if choice:
                                     player_num = "1" if action_type == "player1_move" else "2"
-                                    log_entry += f"   ✋ Игрок {player_num} выбрал: {choice}\n"
+                                    log_entry += f"   ✋ Игрок {player_num} выбрал: {escape_markdown(choice)}\n"
                     
                     if log_type == "finish":
                         if isinstance(extra_data, dict):
@@ -261,7 +285,7 @@ async def show_game_logs(message: Message, bot: Bot):
                             final_state = extra_data.get("final_state")
                             
                             if winner_id:
-                                log_entry += f"   🏆 Победитель игры: {winner_id}\n"
+                                log_entry += f"   🏆 Победитель игры: {escape_markdown(winner_id)}\n"
                             else:
                                 log_entry += f"   🤝 Ничья в игре\n"
                             
@@ -269,7 +293,7 @@ async def show_game_logs(message: Message, bot: Bot):
                                 player1_score = final_state.get("player1_score")
                                 player2_score = final_state.get("player2_score")
                                 if player1_score is not None and player2_score is not None:
-                                    log_entry += f"   📊 Финальный счёт: {player1_score} - {player2_score}\n"
+                                    log_entry += f"   📊 Финальный счёт: {escape_markdown(player1_score)} - {escape_markdown(player2_score)}\n"
                     
                     log_entry += f"   ⏰ {timestamp}\n\n"
                     
@@ -282,7 +306,7 @@ async def show_game_logs(message: Message, bot: Bot):
                             reply_markup=admin_keyboard(message.from_user.id) if i == len(logs) else None
                         )
                         # Start new message
-                        current_message = f"📋 **Логи игр (продолжение)**\n\n{log_entry}"
+                        current_message = f"📋 *Логи игр \\(продолжение\\)*\n\n{log_entry}"
                     else:
                         current_message += log_entry
                 
@@ -305,8 +329,27 @@ async def show_game_logs(message: Message, bot: Bot):
                     f"❌ Ошибка при получении логов: {response.status_code}",
                     reply_markup=admin_keyboard(message.from_user.id)
                 )
-    except Exception as e:
+    except httpx.TimeoutException:
         await message.reply(
-            f"❌ Ошибка при получении логов: {str(e)}",
+            "❌ Ошибка: время ожидания истекло. Попробуйте позже.",
+            reply_markup=admin_keyboard(message.from_user.id)
+        )
+    except httpx.ConnectError:
+        await message.reply(
+            "❌ Ошибка: не удалось подключиться к серверу логов.",
+            reply_markup=admin_keyboard(message.from_user.id)
+        )
+    except httpx.RequestError as e:
+        await message.reply(
+            f"❌ Ошибка соединения: {str(e)}",
+            reply_markup=admin_keyboard(message.from_user.id)
+        )
+    except Exception as e:
+        error_msg = str(e)
+        # Log the full error for debugging
+        import logging
+        logging.error(f"Error fetching logs: {e}", exc_info=True)
+        await message.reply(
+            f"❌ Ошибка при получении логов: {error_msg}",
             reply_markup=admin_keyboard(message.from_user.id)
         )

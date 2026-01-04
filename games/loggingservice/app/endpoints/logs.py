@@ -5,6 +5,7 @@ from app.models import (
 )
 from app.database import Database
 from typing import Optional
+from loguru import logger
 import asyncpg
 
 router = APIRouter()
@@ -71,10 +72,13 @@ async def log_event(request: LogEventRequest):
 @router.get("/all")
 async def get_all_logs(limit: int = 1000, offset: int = 0, game_type: Optional[str] = None):
     """Get all game logs (admin only). Default limit is 1000 to show all logs."""
+    logger.info(f"Getting all logs: limit={limit}, offset={offset}, game_type={game_type}")
     try:
         logs = await Database.get_all_logs(limit=limit, offset=offset, game_type=game_type)
+        logger.success(f"Retrieved {len(logs)} logs successfully")
         return {"logs": logs, "count": len(logs)}
     except Exception as e:
+        logger.error(f"Failed to get logs: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get logs: {str(e)}")
 
 @router.get("/creation")

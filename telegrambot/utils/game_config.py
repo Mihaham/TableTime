@@ -14,6 +14,11 @@ GAME_SERVICES = {
         "service_name": "rps",
         "service_url": "http://apigateway:8000/api/v1/rps",
         "needs_separate_join": False  # Will use game engine
+    },
+    "Кости и Лестницы 🎲": {
+        "service_name": "diceladders",
+        "service_url": "http://apigateway:8000/api/v1/diceladders",
+        "needs_separate_join": False  # Will use game engine
     }
 }
 
